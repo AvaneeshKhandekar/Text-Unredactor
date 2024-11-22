@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+nltk = "*"
+scikit-learn = "*"
+pandas = "*"
+spacy = "*"
+textblob = "*"
+pytest = "*"
+en_core_web_sm = {file = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
+python_full_version = "3.9.13"
