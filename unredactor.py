@@ -102,7 +102,7 @@ def evaluate_model(model, X_valid, y_valid):
     accuracy = accuracy_score(y_valid, predictions)
     logging.info(f"Accuracy: {accuracy * 100:.2f}%")
 
-    report = classification_report(y_valid, predictions, output_dict=True)
+    report = classification_report(y_valid, predictions, output_dict=True, zero_division=1)
     precision = report['macro avg']['precision']
     recall = report['macro avg']['recall']
     f1_score = report['macro avg']['f1-score']
@@ -185,8 +185,8 @@ def main():
     logging.info("Evaluating model.")
     evaluate_model(model, X_valid, y_valid)
 
-    logging.info("Generating submission file.")
-    test_submission(model, dict_vectorizer, count_vectorizer, tfidf_vectorizer, "data/test.tsv", "submission.tsv")
+    # logging.info("Generating submission file.")
+    # test_submission(model, dict_vectorizer, count_vectorizer, tfidf_vectorizer, "data/test.tsv", "submission.tsv")
 
 
 if __name__ == "__main__":

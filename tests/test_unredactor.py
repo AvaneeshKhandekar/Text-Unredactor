@@ -18,9 +18,9 @@ from unredactor import (
 @pytest.fixture
 def mock_data():
     data = {
-        "Split": ["training", "training", "validation", "validation"],
-        "Redacted": ["word1", "word2", "word3", "word4"],
-        "Sentence": [
+        "split": ["training", "training", "validation", "validation"],
+        "name": ["word1", "word2", "word3", "word4"],
+        "context": [
             "This is a test sentence 1.",
             "This is a test sentence 2.",
             "This is a test sentence 3.",
@@ -44,20 +44,20 @@ def test_split_data(mock_data):
 
 
 def test_fit_vectorizers(mock_data):
-    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["Sentence"])
+    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["context"])
     assert isinstance(count_vectorizer, CountVectorizer)
     assert isinstance(tfidf_vectorizer, TfidfVectorizer)
 
 
 def test_extract_features(mock_data):
-    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["Sentence"])
+    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["context"])
     row = mock_data.iloc[0]
     features = extract_features(row, count_vectorizer, tfidf_vectorizer)
     assert isinstance(features, dict)
 
 
 def test_transform_features(mock_data):
-    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["Sentence"])
+    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["context"])
     dict_vectorizer = MagicMock()
     dict_vectorizer.transform = MagicMock(return_value=[[1, 2], [3, 4]])
 
@@ -66,12 +66,12 @@ def test_transform_features(mock_data):
 
 
 def test_train_model(mock_data):
-    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["Sentence"])
+    count_vectorizer, tfidf_vectorizer = fit_vectorizers(mock_data["context"])
     dict_vectorizer = MagicMock()
     X_train = dict_vectorizer.fit_transform(
         mock_data.apply(lambda row: extract_features(row, count_vectorizer, tfidf_vectorizer), axis=1).tolist()
     )
-    y_train = mock_data["Redacted"]
+    y_train = mock_data["name"]
 
     with patch("unredactor.RandomForestClassifier") as MockRandomForest:
         mock_model = MagicMock()
@@ -134,6 +134,6 @@ def test_main(
 
     main()
 
-    mock_train_model.assert_not_called()
-    mock_save_artifacts.assert_not_called()
+    mock_train_model.assert_called()
+    mock_save_artifacts.assert_called()
     mock_evaluate_model.assert_called_once()
