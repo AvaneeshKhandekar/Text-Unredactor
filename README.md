@@ -84,7 +84,7 @@ Feature Extraction: For each sentence, a variety of features are extracted:
 - POS Tagging: The previous and next words, along with their POS tags, are extracted.
     - Crucial for understanding grammatical and semantic context, aiding in redaction reversal.
 - Named Entity Recognition (NER): Named entity labels (e.g., PERSON, DATE, LOCATION, etc.), with each entity type having
-  a value of 1 if present in the sentence using ```SpaCy``.
+  a value of 1 if present in the sentence using ```SpaCy```.
     - Identifies whether the sentence mentions key entities, narrowing down redaction possibilities.
 - Dependency Parsing: The number of dependency relations in the sentence.
     - Reflects sentence complexity and structural relationships, providing additional contextual signals.
