@@ -11,6 +11,7 @@ from nltk import pos_tag
 import nltk
 import logging
 import en_core_web_sm
+from sklearn.metrics.pairwise import cosine_similarity
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -23,16 +24,16 @@ sia = SentimentIntensityAnalyzer()
 
 
 def load_and_preprocess_data(file1, file2):
-    df1 = pd.read_csv(file1, sep="\t", names=["Split", "Redacted", "Sentence"], on_bad_lines="skip")
-    df2 = pd.read_csv(file2, sep="\t", names=["Split", "Redacted", "Sentence"], on_bad_lines="skip")
+    df1 = pd.read_csv(file1, sep="\t", names=["split", "name", "context"], on_bad_lines="skip")
+    df2 = pd.read_csv(file2, sep="\t", names=["split", "name", "context"], on_bad_lines="skip")
     df = pd.concat([df1, df2]).reset_index(drop=True)
-    df["Sentence"] = df["Sentence"].str.replace(r"█+", "[REDACTED]", regex=False)
+    df["context"] = df["context"].str.replace(r"█+", "[MASK]", regex=False)
     return df
 
 
 def split_data(df):
-    train_df = df[df["Split"] == "training"]
-    valid_df = df[df["Split"] == "validation"]
+    train_df = df[df["split"] == "training"]
+    valid_df = df[df["split"] == "validation"]
     return train_df, valid_df
 
 
@@ -47,8 +48,8 @@ def fit_vectorizers(train_sentences):
 
 
 def extract_features(row, count_vectorizer, tfidf_vectorizer):
-    sentence = row["Sentence"]
-    redacted_word = row["Redacted"]
+    sentence = row["context"]
+    redacted_word = row["name"]
 
     features = {
         **{f"ngram_{i}": val for i, val in enumerate(count_vectorizer.transform([sentence]).toarray()[0])},
@@ -63,7 +64,7 @@ def extract_features(row, count_vectorizer, tfidf_vectorizer):
     words = word_tokenize(sentence)
     pos_tags = pos_tag(words)
     try:
-        idx = words.index("[REDACTED]")
+        idx = words.index("[MASK]")
         features["prev_word"] = words[idx - 1] if idx > 0 else ""
         features["next_word"] = words[idx + 1] if idx < len(words) - 1 else ""
         features["prev_pos"] = pos_tags[idx - 1][1] if idx > 0 else ""
@@ -72,10 +73,15 @@ def extract_features(row, count_vectorizer, tfidf_vectorizer):
         features.update({"prev_word": "", "next_word": "", "prev_pos": "", "next_pos": ""})
 
     doc = spacy_model(sentence)
-    entities = {ent.label_: 1 for ent in doc.ents}
-    features.update(entities)
+    entity_counts = {}
+    for ent in doc.ents:
+        entity_counts[ent.label_] = entity_counts.get(ent.label_, 0) + 1
+    features.update(entity_counts)
 
-    features["num_dependencies"] = len(list(doc.sents))
+    features["num_sentences"] = len(list(doc.sents))
+
+    features["semantic_similarity"] = \
+    cosine_similarity([spacy_model(sentence).vector], [spacy_model(redacted_word).vector])[0][0]
 
     return features
 
@@ -124,13 +130,13 @@ def test_submission(model, dict_vectorizer, count_vectorizer, tfidf_vectorizer, 
     test_df = pd.read_csv(test_file, sep="\t", names=["id", "context"], on_bad_lines="skip")
 
     logging.info("Preprocessing test data.")
-    test_df["context"] = test_df["context"].str.replace(r"█+", "[REDACTED]", regex=False)
+    test_df["context"] = test_df["context"].str.replace(r"█+", "[MASK]", regex=False)
 
     logging.info("Extracting features for test data.")
 
     test_features = test_df.apply(
         lambda row: extract_features(
-            {"Sentence": row["context"], "Redacted": "[REDACTED]"},
+            {"context": row["context"], "name": "[MASK]"},
             count_vectorizer,
             tfidf_vectorizer,
         ),
@@ -158,7 +164,7 @@ def main():
         tfidf_vectorizer = joblib.load("results/tfidf_vectorizer.pkl")
     else:
         logging.info("Fitting new vectorizers.")
-        count_vectorizer, tfidf_vectorizer = fit_vectorizers(train_df["Sentence"])
+        count_vectorizer, tfidf_vectorizer = fit_vectorizers(train_df["context"])
         save_artifacts(None, count_vectorizer, tfidf_vectorizer, None)
 
     logging.info("Extracting and transforming features.")
@@ -166,7 +172,7 @@ def main():
     X_train = dict_vectorizer.fit_transform(
         train_df.apply(lambda row: extract_features(row, count_vectorizer, tfidf_vectorizer), axis=1).tolist())
     X_valid = transform_features(valid_df, count_vectorizer, tfidf_vectorizer, dict_vectorizer)
-    y_train, y_valid = train_df["Redacted"], valid_df["Redacted"]
+    y_train, y_valid = train_df["name"], valid_df["name"]
 
     if os.path.exists("results/model.pkl"):
         logging.info("Loading existing model.")

@@ -44,6 +44,7 @@ System Specification:
 CPU: Intel Core i7-9750H @ 2.6 GHz
 GPU: NVIDIA GeForce RTX 2060 6 GB
 RAM: 16 GB
+SPACE: 15 GB (Observed model size)
 ```
 ## OVERVIEW
 
@@ -84,10 +85,10 @@ Feature Extraction: For each sentence, a variety of features are extracted:
 - POS Tagging: The previous and next words, along with their POS tags, are extracted.
     - Crucial for understanding grammatical and semantic context, aiding in redaction reversal.
 - Named Entity Recognition (NER): Named entity labels (e.g., PERSON, DATE, LOCATION, etc.), with each entity type having
-  a value of 1 if present in the sentence using ```SpaCy```.
-    - Identifies whether the sentence mentions key entities, narrowing down redaction possibilities.
-- Dependency Parsing: The number of dependency relations in the sentence.
-    - Reflects sentence complexity and structural relationships, providing additional contextual signals.
+  a frequency count if present in the sentence using ```SpaCy```.
+    - Identifies whether the sentence mentions key entities and how frequently, narrowing down redaction possibilities.
+- Number of sentence: The number of sentence in the text.
+    - Reflects text complexity and structural relationships, providing additional contextual signals.
 
 These features collectively improve the feature vector with lexical, semantic, syntactic, and contextual information,
 enabling the model to predict the redacted term with higher accuracy.
@@ -106,7 +107,7 @@ The trained model is then used to predict the original name from sentences with 
 - Loads the dataset from two input files and preprocesses it.
 - Reads two files using pd.read_csv, assigning column names ("split", "redacted", "sentence").
 - Concatenates both datasets into a single DataFrame and resets the index.
-- Replaces any instances of "█" characters in the sentences with the token "[REDACTED]".
+- Replaces any instances of "█" characters in the sentences with the token "[MASK]". This is a common tokenization technique used in training LLMs.
 - Returns the concatenated and preprocessed DataFrame.
 
 #### - `split_data(df):`
@@ -131,8 +132,8 @@ The trained model is then used to predict the original name from sentences with 
 - Counts Redacted word length and number of spaces to add to features.
 - Counts the number of capitalized letters and the sentence length (in terms of words).
 - Extracts the previous and next words and their respective POS tags based on the tokenized sentence.
-- Uses apcy to extract named entities and add to features.
-- Uses SpaCy to identify syntactic dependencies in the sentence and add to features.
+- Uses SpaCy to extract named entities and their frequencies and add to features.
+- Uses SpaCy to identify number of sentences.
 - Returns a dictionary of features.
 
 #### - `transform_features(df, count_vectorizer, tfidf_vectorizer, dict_vectorizer):`
@@ -147,6 +148,7 @@ The trained model is then used to predict the original name from sentences with 
 - Trains a machine learning model (Random Forest classifier).
 - A RandomForestClassifier is instantiated and trained on the extracted features (X_train) and the corresponding target
   labels (y_train).
+- A seed is set for reproducibility.
 - Returns the trained Random Forest model.
 
 #### - `evaluate_model(model, X_valid, y_valid):`
@@ -167,6 +169,18 @@ The trained model is then used to predict the original name from sentences with 
 - Saves the trained model and vectorizers to disk for later use.
 - Checks if a directory named results exists; if not, creates it.
 - Saves the model and vectorizers using joblib to the results folder.
+
+#### - `test_submission(model, dict_vectorizer, count_vectorizer, tfidf_vectorizer, test_file, output_file):`
+
+- Predicts name for the test dataset.
+- Preprocesses the testing data in the same way training data.
+- Uses the model to predict the names.
+- Saves the result in a submission.tsv file.
+- Note: Uncomment these lines to run this function when required:
+  - ```
+    logging.info("Generating submission file.")
+    test_submission(model, dict_vectorizer, count_vectorizer, tfidf_vectorizer, "data/test.tsv", "submission.tsv")
+    ```
 
 #### - `main():`
 
@@ -245,10 +259,10 @@ The trained model is then used to predict the original name from sentences with 
 
 The current model yields low performance metrics:
 
-- Precision: 0.02243
-- Recall: 0.02777
-- F1-Score: 0.02311
-- Accuracy: 4.03%
+- Precision: 0.02452
+- Recall: 0.03083
+- F1-Score: 0.02527
+- Accuracy: 4.52%
 
 The model relies on basic feature engineering (e.g., n-grams, POS tags, sentiment) but lacks deep contextual
 understanding of language.
@@ -328,6 +342,7 @@ in a TSV file. It also generates detailed statistics about the redaction process
 - Creates the output directory if it doesn't exist.
 - Opens the .tar archive (imdb_data.tar).
 - Filters .txt files and randomly selects files based on --samples.
+- A seed is set for reproducibility.
 - Iterates through selected files, calls redact_file(), and aggregates statistics.
 - Writes redacted terms to a TSV file.
 - Outputs redaction statistics to the specified file or stream (stdout, stderr).
