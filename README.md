@@ -17,13 +17,7 @@ pipenv install
 To generate additional samples for training:
 
 ```bash
-pipenv run python redactor.py --output <output_file_path> --samples <number_of_samples> --stats <stats_file_path> 
-```
-
-Required:
-
-``` 
-- <output> -> Example: /files to create a folder for the additional samples.
+pipenv run python redactor.py --samples <number_of_samples> --stats <stats_file_path> 
 ```
 
 Optional:

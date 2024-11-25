@@ -51,7 +51,6 @@ def redact_file(file_obj, nlp, tsv_rows):
 
 def main():
     parser = argparse.ArgumentParser(description='Text Redactor')
-    parser.add_argument('--output', required=True, help='Output directory')
     parser.add_argument('--stats', help='Output redaction stats file path')
     parser.add_argument('--samples', type=int, default=500, help='Number of data to process')
     args = parser.parse_args()
@@ -59,19 +58,20 @@ def main():
     logging.info("Starting redaction process...")
     nlp = init_model()
 
-    if not os.path.exists(args.output):
-        os.makedirs(args.output)
-        logging.info(f"Created output directory: {args.output}")
+    if not os.path.exists('data'):
+        os.makedirs('data')
+        logging.info(f"Created output directory: data")
 
     tar_path = 'data/imdb_data.tar'
     with tarfile.open(tar_path, 'r') as tar:
         extracted_files = [file for file in tar.getnames() if file.endswith('.txt')]
 
     logging.info(f"Found {len(extracted_files)} data in archive.")
+    random.seed(42)
     selected_files = random.sample(extracted_files, min(args.samples, len(extracted_files)))
     logging.info(f"Selected {len(selected_files)} data.")
 
-    tsv_output_file = os.path.join(args.output, 'redacted_output.tsv')
+    tsv_output_file = os.path.join('data', 'redacted_output.tsv')
     tsv_rows = []
     stats = []
 
